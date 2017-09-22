@@ -18,6 +18,7 @@ package com.example.android.musicservicedemo.model;
 
 import android.media.MediaMetadata;
 import android.os.AsyncTask;
+import android.util.Log;
 
 import com.example.android.musicservicedemo.utils.LogHelper;
 
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -46,7 +48,7 @@ public class MusicProvider {
     private static final String TAG = "MusicProvider";
 
     //private static final String CATALOG_URL = "http://storage.googleapis.com/automotive-media/music.json";
-    private static final String CATALOG_URL = "http://yourjson.com/yj/serv/226";
+    private static final String CATALOG_URL = "https://api.myjson.com/bins/uoyd5";
     public static final String CUSTOM_METADATA_TRACK_SOURCE = "__SOURCE__";
 
     private static String JSON_MUSIC = "music";
@@ -92,7 +94,7 @@ public class MusicProvider {
      */
     public Iterable<String> getGenres() {
         if (mCurrentState != State.INITIALIZED) {
-            return new ArrayList<String>(0);
+            return new ArrayList<>(0);
         }
         return mMusicListByGenre.keySet();
     }
@@ -131,6 +133,7 @@ public class MusicProvider {
     }
 
     public MediaMetadata getMusic(String mediaId) {
+        Log.wtf(TAG, "getMusic");
         return mMusicListById.get(mediaId);
     }
 
@@ -165,7 +168,7 @@ public class MusicProvider {
         }
 
         // Asynchronously load the music catalog in a separate thread
-        new AsyncTask() {
+        new AsyncTask<Object, Object, Object>() {
             @Override
             protected Object doInBackground(Object[] objects) {
                 retrieveMediaAsync(callback);
@@ -175,21 +178,28 @@ public class MusicProvider {
     }
 
     private void retrieveMediaAsync(Callback callback) {
+        Log.wtf(TAG, "retrieveMediaAsync");
         initializationLock.lock();
 
         try {
             if (mCurrentState == State.NON_INITIALIZED) {
+                Log.wtf(TAG, "NON_INITIALIZED");
                 mCurrentState = State.INITIALIZING;
 
                 int slashPos = CATALOG_URL.lastIndexOf('/');
                 String path = CATALOG_URL.substring(0, slashPos + 1);
                 JSONObject jsonObj = parseUrl(CATALOG_URL);
+                Log.wtf(TAG, jsonObj.toString());
 
                 JSONArray tracks = jsonObj.getJSONArray(JSON_MUSIC);
+
                 if (tracks != null) {
+                    Log.wtf(TAG, "tracks");
                     for (int j = 0; j < tracks.length(); j++) {
                         MediaMetadata item = buildFromJSON(tracks.getJSONObject(j), path);
+
                         String genre = item.getString(MediaMetadata.METADATA_KEY_GENRE);
+                        Log.wtf(TAG, genre);
                         List<MediaMetadata> list = mMusicListByGenre.get(genre);
                         if (list == null) {
                             list = new ArrayList<>();
@@ -201,23 +211,27 @@ public class MusicProvider {
                     }
                 }
                 mCurrentState = State.INITIALIZED;
+                Log.wtf(TAG, ""+ mCurrentState);
             }
         } catch (RuntimeException | JSONException e) {
-            LogHelper.e(TAG, e, "Could not retrieve music list");
+            Log.wtf(TAG, "Could not retrieve music list");
         } finally {
             if (mCurrentState != State.INITIALIZED) {
                 // Something bad happened, so we reset state to NON_INITIALIZED to allow
                 // retries (eg if the network connection is temporary unavailable)
                 mCurrentState = State.NON_INITIALIZED;
+                Log.wtf(TAG, "NON_INITIALIZED");
             }
             initializationLock.unlock();
             if (callback != null) {
+                Log.wtf(TAG, "callback");
                 callback.onMusicCatalogReady(mCurrentState == State.INITIALIZED);
             }
         }
     }
 
     private MediaMetadata buildFromJSON(JSONObject json, String basePath) throws JSONException {
+        Log.wtf(TAG, "buildFromJSON");
         String title = json.getString(JSON_TITLE);
         String album = json.getString(JSON_ALBUM);
         String artist = json.getString(JSON_ARTIST);
@@ -228,7 +242,7 @@ public class MusicProvider {
         int totalTrackCount = json.getInt(JSON_TOTAL_TRACK_COUNT);
         int duration = json.getInt(JSON_DURATION) * 1000; // ms
 
-        LogHelper.d(TAG, "Found music track: ", json);
+        Log.wtf(TAG, "Found music track: "+ json);
 
         // Media is stored relative to JSON file
         if (!source.startsWith("http")) {
@@ -264,32 +278,79 @@ public class MusicProvider {
      * object.
      *
      * @param urlString
-     * @return
+     * @return JSONObject
      */
-    private JSONObject parseUrl(String urlString) {
-        InputStream is = null;
-        try {
-            java.net.URL url = new java.net.URL(urlString);
-            URLConnection urlConnection = url.openConnection();
-            is = new BufferedInputStream(urlConnection.getInputStream());
-            BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "iso-8859-1"), 8);
-            StringBuilder sb = new StringBuilder();
-            String line = null;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-            return new JSONObject(sb.toString());
-        } catch (Exception e) {
-            LogHelper.e(TAG, "Failed to parse the json for media list", e);
-            return null;
-        } finally {
-            if (is != null) {
-                try {
-                    is.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-        }
+    private JSONObject parseUrl(String urlString) throws JSONException {
+        Log.wtf(TAG, "parseUrl");
+
+//        //InputStream is = null;
+//        try {
+//            java.net.URL url = new java.net.URL(urlString);
+//            Log.wtf(TAG, "parseUrl1");
+//            URLConnection urlConnection = url.openConnection();
+//            Log.wtf(TAG, "parseUrl2");
+//            Log.wtf(TAG, "parseUrl2 "+urlConnection.toString());
+//            //is = new BufferedInputStream(urlConnection.getInputStream());
+//            Log.wtf(TAG, "parseUrl3");
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "iso-8859-1"), 8);
+//            Log.wtf(TAG, "parseUrl4");
+//            StringBuilder sb = new StringBuilder();
+//            Log.wtf(TAG, "parseUrl5");
+//            String line = null;
+//            while ((line = reader.readLine()) != null) {
+//                Log.wtf(TAG, "line: "+line);
+//                sb.append(line);
+//            }
+//            return new JSONObject(sb.toString());
+//        } catch (Exception e) {
+//            Log.wtf(TAG, "Failed to parse the json for media list", e);
+//            return null;
+//        } finally {
+//            if (is != null) {
+//                try {
+//                    is.close();
+//                } catch (IOException e) {
+//                    // ignore
+//                }
+//            }
+        //}
+String s = "{\n" +
+        "  \"music\": [\n" +
+        "    {\n" +
+        "      \"title\": \"Jorge Chavez International Airport\n\",\n" +
+        "      \"album\": \"Latin America\",\n" +
+        "      \"artist\": \"SPJC\",\n" +
+        "      \"genre\": \"ATC - Live\",\n" +
+        "      \"source\": \"http://bos.liveatc.net/spjc2\",\n" +
+        "      \"image\": \"https://www.fertur-travel.com/blog/wp-content/uploads/2013/04/Lima-Jorge-Ch%C3%A1vez-International-Airport.jpg\",\n" +
+        "      \"trackNumber\": 0,\n" +
+        "      \"totalTrackCount\": 0,\n" +
+        "      \"duration\": 0\n" +
+        "    },\n" +
+        "    {\n" +
+        "      \"title\": \"Benito Juarez International Airport\",\n" +
+        "      \"album\": \"Latin America\",\n" +
+        "      \"artist\": \"MMMX\",\n" +
+        "      \"genre\": \"ATC - Live\",\n" +
+        "      \"source\": \"http://d.liveatc.net/mmmx1\",\n" +
+        "      \"image\": \"https://cdn.lopezdoriga.com/wp-content/uploads/2017/02/Aeropuerto.jpg\",\n" +
+        "      \"trackNumber\": 0,\n" +
+        "      \"totalTrackCount\": 0,\n" +
+        "      \"duration\": 0\n" +
+        "    },\n" +
+        "    {\n" +
+        "      \"title\": \"Mariano Escboedo International Airport\",\n" +
+        "      \"album\": \"Latin America\",\n" +
+        "      \"artist\": \"MMMY\",\n" +
+        "      \"genre\": \"ATC - Live\",\n" +
+        "      \"source\": \"http://d.liveatc.net/mmmy\",\n" +
+        "      \"image\": \"myAlbum\",\n" +
+        "      \"trackNumber\": 0,\n" +
+        "      \"totalTrackCount\": 0,\n" +
+        "      \"duration\": 0\n" +
+        "    }\n" +
+        "  ]\n" +
+        "}";
+        return new JSONObject(s);
     }
 }

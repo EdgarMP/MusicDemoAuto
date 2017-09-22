@@ -35,9 +35,9 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.service.media.MediaBrowserService;
+import android.util.Log;
 
 import com.example.android.musicservicedemo.model.MusicProvider;
-import com.example.android.musicservicedemo.utils.LogHelper;
 import com.example.android.musicservicedemo.utils.MediaIDHelper;
 import com.example.android.musicservicedemo.utils.QueueHelper;
 
@@ -158,12 +158,12 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
     @Override
     public void onCreate() {
         super.onCreate();
-        LogHelper.d(TAG, "onCreate");
+        Log.wtf(TAG, "onCreate");
 
         mPlayingQueue = new ArrayList<>();
 
         // Create the Wifi lock (this does not acquire the lock, this just creates it)
-        mWifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
+        mWifiLock = ((WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE))
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "MusicDemo_lock");
 
         // Create the music catalog metadata provider
@@ -171,13 +171,17 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
         mMusicProvider.retrieveMedia(new MusicProvider.Callback() {
             @Override
             public void onMusicCatalogReady(boolean success) {
+                Log.wtf(TAG, "onMusicCatalogReady");
                 mState = success ? PlaybackState.STATE_STOPPED : PlaybackState.STATE_ERROR;
+                Log.wtf(TAG, "mState" +mState);
             }
         });
 
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
         // Start a new MediaSession
+        Log.wtf(TAG, "mAaudio" +
+                "managre");
         mSession = new MediaSession(this, "MusicService");
         setSessionToken(mSession.getSessionToken());
         mSession.setCallback(new MediaSessionCallback());
@@ -192,7 +196,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      */
     @Override
     public void onDestroy() {
-        LogHelper.d(TAG, "onDestroy");
+        Log.wtf(TAG, "onDestroy");
 
         // Service is being killed, so make sure we release our resources
         handleStopRequest(null);
@@ -207,15 +211,14 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        LogHelper.d(TAG, "OnGetRoot: clientPackageName=" + clientPackageName,
-                "; clientUid=" + clientUid + " ; rootHints=", rootHints);
+        Log.wtf(TAG, "OnGetRoot: clientPackageName=" + clientPackageName+ "; clientUid=" + clientUid + " ; rootHints=" + rootHints);
         // To ensure you are not allowing any arbitrary app to browse your app's contents, you
         // need to check the origin:
         if (!ANDROID_AUTO_PACKAGE_NAME.equals(clientPackageName) &&
                 !ANDROID_AUTO_EMULATOR_PACKAGE_NAME.equals(clientPackageName)) {
             // If the request comes from an untrusted package, return null. No further calls will
             // be made to other media browsing methods.
-            LogHelper.w(TAG, "OnGetRoot: IGNORING request from untrusted package " + clientPackageName);
+            Log.w(TAG, "OnGetRoot: IGNORING request from untrusted package " + clientPackageName);
             return null;
         }
         return new BrowserRoot(MEDIA_ID_ROOT, null);
@@ -223,7 +226,9 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaItem>> result) {
+        Log.wtf(TAG, "onLoadChildren");
         if (!mMusicProvider.isInitialized()) {
+            Log.wtf(TAG, "!mMusicProvider.isInitialized()");
             // Use result.detach to allow calling result.sendResult from another thread:
             result.detach();
 
@@ -251,12 +256,12 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      */
     private void loadChildrenImpl(final String parentMediaId,
                                   final Result<List<MediaBrowser.MediaItem>> result) {
-        LogHelper.d(TAG, "OnLoadChildren: parentMediaId=", parentMediaId);
+        Log.wtf(TAG, "OnLoadChildren: parentMediaId="+ parentMediaId);
 
         List<MediaBrowser.MediaItem> mediaItems = new ArrayList<>();
 
         if (MEDIA_ID_ROOT.equals(parentMediaId)) {
-            LogHelper.d(TAG, "OnLoadChildren.ROOT");
+            Log.wtf(TAG, "OnLoadChildren.ROOT");
             mediaItems.add(new MediaBrowser.MediaItem(
                     new MediaDescription.Builder()
                         .setMediaId(MEDIA_ID_MUSICS_BY_GENRE)
@@ -267,7 +272,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
             ));
 
         } else if (MEDIA_ID_MUSICS_BY_GENRE.equals(parentMediaId)) {
-            LogHelper.d(TAG, "OnLoadChildren.GENRES");
+            Log.wtf(TAG, "OnLoadChildren.GENRES");
             for (String genre: mMusicProvider.getGenres()) {
                 MediaBrowser.MediaItem item = new MediaBrowser.MediaItem(
                     new MediaDescription.Builder()
@@ -281,7 +286,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
         } else if (parentMediaId.startsWith(MEDIA_ID_MUSICS_BY_GENRE)) {
             String genre = extractBrowseCategoryFromMediaID(parentMediaId)[1];
-            LogHelper.d(TAG, "OnLoadChildren.SONGS_BY_GENRE  genre=", genre);
+            Log.wtf(TAG, "OnLoadChildren.SONGS_BY_GENRE  genre="+ genre);
             for (MediaMetadata track: mMusicProvider.getMusicsByGenre(genre)) {
                 // Since mediaMetadata fields are immutable, we need to create a copy, so we
                 // can set a hierarchy-aware mediaID. We will need to know the media hierarchy
@@ -297,7 +302,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
                 mediaItems.add(bItem);
             }
         } else {
-            LogHelper.w(TAG, "Skipping unmatched parentMediaId: ", parentMediaId);
+            Log.w(TAG, "Skipping unmatched parentMediaId: " + parentMediaId);
         }
         result.sendResult(mediaItems);
     }
@@ -309,7 +314,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
     private final class MediaSessionCallback extends MediaSession.Callback {
         @Override
         public void onPlay() {
-            LogHelper.d(TAG, "play");
+            Log.wtf(TAG, "play");
 
             if (mPlayingQueue == null || mPlayingQueue.isEmpty()) {
                 mPlayingQueue = QueueHelper.getRandomQueue(mMusicProvider);
@@ -326,7 +331,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
         @Override
         public void onSkipToQueueItem(long queueId) {
-            LogHelper.d(TAG, "OnSkipToQueueItem:" + queueId);
+            Log.wtf(TAG, "OnSkipToQueueItem:" + queueId);
             if (mPlayingQueue != null && !mPlayingQueue.isEmpty()) {
 
                 // set the current index on queue from the music Id:
@@ -339,7 +344,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
         @Override
         public void onPlayFromMediaId(String mediaId, Bundle extras) {
-            LogHelper.d(TAG, "playFromMediaId mediaId:", mediaId, "  extras=", extras);
+            Log.wtf(TAG, "playFromMediaId mediaId:"+ mediaId+ "  extras="+ extras);
 
             // The mediaId used here is not the unique musicId. This one comes from the
             // MediaBrowser, and is actually a "hierarchy-aware mediaID": a concatenation of
@@ -365,19 +370,19 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
         @Override
         public void onPause() {
-            LogHelper.d(TAG, "pause. current state=" + mState);
+            Log.wtf(TAG, "pause. current state=" + mState);
             handlePauseRequest();
         }
 
         @Override
         public void onStop() {
-            LogHelper.d(TAG, "stop. current state=" + mState);
+            Log.wtf(TAG, "stop. current state=" + mState);
             handleStopRequest(null);
         }
 
         @Override
         public void onSkipToNext() {
-            LogHelper.d(TAG, "skipToNext");
+            Log.wtf(TAG, "skipToNext");
             mCurrentIndexOnQueue++;
             if (mPlayingQueue != null && mCurrentIndexOnQueue >= mPlayingQueue.size()) {
                 mCurrentIndexOnQueue = 0;
@@ -386,7 +391,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
                 mState = PlaybackState.STATE_PLAYING;
                 handlePlayRequest();
             } else {
-                LogHelper.e(TAG, "skipToNext: cannot skip to next. next Index=" +
+                Log.e(TAG, "skipToNext: cannot skip to next. next Index=" +
                         mCurrentIndexOnQueue + " queue length=" +
                         (mPlayingQueue == null ? "null" : mPlayingQueue.size()));
                 handleStopRequest("Cannot skip");
@@ -395,7 +400,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
         @Override
         public void onSkipToPrevious() {
-            LogHelper.d(TAG, "skipToPrevious");
+            Log.wtf(TAG, "skipToPrevious");
 
             mCurrentIndexOnQueue--;
             if (mPlayingQueue != null && mCurrentIndexOnQueue < 0) {
@@ -407,7 +412,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
                 mState = PlaybackState.STATE_PLAYING;
                 handlePlayRequest();
             } else {
-                LogHelper.e(TAG, "skipToPrevious: cannot skip to previous. previous Index=" +
+                Log.e(TAG, "skipToPrevious: cannot skip to previous. previous Index=" +
                         mCurrentIndexOnQueue + " queue length=" +
                         (mPlayingQueue == null ? "null" : mPlayingQueue.size()));
                 handleStopRequest("Cannot skip");
@@ -417,7 +422,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
         @Override
         public void onCustomAction(String action, Bundle extras) {
             if (CUSTOM_ACTION_THUMBS_UP.equals(action)) {
-                LogHelper.i(TAG, "onCustomAction: favorite for current track");
+                Log.i(TAG, "onCustomAction: favorite for current track");
                 MediaMetadata track = getCurrentPlayingMusic();
                 if (track != null) {
                     String mediaId = track.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
@@ -425,17 +430,17 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
                 }
                 updatePlaybackState(null);
             } else {
-                LogHelper.e(TAG, "Unsupported action: ", action);
+                Log.e(TAG, "Unsupported action: "+ action);
             }
 
         }
 
         @Override
         public void onPlayFromSearch(String query, Bundle extras) {
-            LogHelper.d(TAG, "playFromSearch  query=", query);
+            Log.wtf(TAG, "playFromSearch  query="+ query);
 
             mPlayingQueue = QueueHelper.getPlayingQueueFromSearch(query, mMusicProvider);
-            LogHelper.d(TAG, "playFromSearch  playqueue.length=" + mPlayingQueue.size());
+            Log.wtf(TAG, "playFromSearch  playqueue.length=" + mPlayingQueue.size());
             mSession.setQueue(mPlayingQueue);
 
             if (mPlayingQueue != null && !mPlayingQueue.isEmpty()) {
@@ -458,7 +463,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      */
     @Override
     public void onCompletion(MediaPlayer player) {
-        LogHelper.d(TAG, "onCompletion from MediaPlayer");
+        Log.wtf(TAG, "onCompletion from MediaPlayer");
         // The media player finished playing the current song, so we go ahead
         // and start the next.
         if (mPlayingQueue != null && !mPlayingQueue.isEmpty()) {
@@ -480,7 +485,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      */
     @Override
     public void onPrepared(MediaPlayer player) {
-        LogHelper.d(TAG, "onPrepared from MediaPlayer");
+        Log.wtf(TAG, "onPrepared from MediaPlayer");
         // The media player is done preparing. That means we can start playing if we
         // have audio focus.
         configMediaPlayerState();
@@ -495,7 +500,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      */
     @Override
     public boolean onError(MediaPlayer mp, int what, int extra) {
-        LogHelper.e(TAG, "Media player error: what=" + what + ", extra=" + extra);
+        Log.e(TAG, "Media player error: what=" + what + ", extra=" + extra);
         handleStopRequest("MediaPlayer error " + what + " (" + extra + ")");
         return true; // true indicates we handled the error
     }
@@ -511,7 +516,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      */
     @Override
     public void onAudioFocusChange(int focusChange) {
-        LogHelper.d(TAG, "onAudioFocusChange. focusChange=" + focusChange);
+        Log.wtf(TAG, "onAudioFocusChange. focusChange=" + focusChange);
         if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
             // We have gained focus:
             mAudioFocus = AudioFocus.Focused;
@@ -532,7 +537,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
                 mPlayOnFocusGain = true;
             }
         } else {
-            LogHelper.e(TAG, "onAudioFocusChange: Ignoring unsupported focusChange: " + focusChange);
+            Log.e(TAG, "onAudioFocusChange: Ignoring unsupported focusChange: " + focusChange);
         }
 
         configMediaPlayerState();
@@ -546,7 +551,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      * Handle a request to play music
      */
     private void handlePlayRequest() {
-        LogHelper.d(TAG, "handlePlayRequest: mState=" + mState);
+        Log.wtf(TAG, "handlePlayRequest: mState=" + mState);
 
         mPlayOnFocusGain = true;
         tryToGetAudioFocus();
@@ -572,7 +577,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      * Handle a request to pause music
      */
     private void handlePauseRequest() {
-        LogHelper.d(TAG, "handlePauseRequest: mState=" + mState);
+        Log.wtf(TAG, "handlePauseRequest: mState=" + mState);
 
         if (mState == PlaybackState.STATE_PLAYING) {
             // Pause media player and cancel the 'foreground service' state.
@@ -591,7 +596,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
          * Handle a request to stop music
          */
     private void handleStopRequest(String withError) {
-        LogHelper.d(TAG, "handleStopRequest: mState=" + mState + " error=", withError);
+        Log.wtf(TAG, "handleStopRequest: mState=" + mState + " error="+ withError);
         mState = PlaybackState.STATE_STOPPED;
 
         // let go of all resources...
@@ -613,7 +618,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      *            be released or not
      */
     private void relaxResources(boolean releaseMediaPlayer) {
-        LogHelper.d(TAG, "relaxResources. releaseMediaPlayer=" + releaseMediaPlayer);
+        Log.wtf(TAG, "relaxResources. releaseMediaPlayer=" + releaseMediaPlayer);
         // stop being a foreground service
         stopForeground(true);
 
@@ -641,7 +646,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      * you are sure this is the case.
      */
     private void configMediaPlayerState() {
-        LogHelper.d(TAG, "configAndStartMediaPlayer. mAudioFocus=" + mAudioFocus);
+        Log.wtf(TAG, "configAndStartMediaPlayer. mAudioFocus=" + mAudioFocus);
         if (mAudioFocus == AudioFocus.NoFocusNoDuck) {
             // If we don't have audio focus and can't duck, we have to pause,
             if (mState == PlaybackState.STATE_PLAYING) {
@@ -656,7 +661,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
             // If we were playing when we lost focus, we need to resume playing.
             if (mPlayOnFocusGain) {
                 if (!mMediaPlayer.isPlaying()) {
-                    LogHelper.d(TAG, "configAndStartMediaPlayer startMediaPlayer.");
+                    Log.wtf(TAG, "configAndStartMediaPlayer startMediaPlayer.");
                     mMediaPlayer.start();
                 }
                 mPlayOnFocusGain = false;
@@ -672,7 +677,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      * already exists.
      */
     private void createMediaPlayerIfNeeded() {
-        LogHelper.d(TAG, "createMediaPlayerIfNeeded. needed? " + (mMediaPlayer==null));
+        Log.wtf(TAG, "createMediaPlayerIfNeeded. needed? " + (mMediaPlayer==null));
         if (mMediaPlayer == null) {
             mMediaPlayer = new MediaPlayer();
 
@@ -697,14 +702,15 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
     void playCurrentSong() {
         MediaMetadata track = getCurrentPlayingMusic();
         if (track == null) {
-            LogHelper.e(TAG, "playSong:  ignoring request to play next song, because cannot" +
+            Log.e(TAG, "playSong:  ignoring request to play next song, because cannot" +
                     " find it." +
                     " currentIndex=" + mCurrentIndexOnQueue +
                     " playQueue.size=" + (mPlayingQueue==null?"null": mPlayingQueue.size()));
             return;
         }
+
         String source = track.getString(MusicProvider.CUSTOM_METADATA_TRACK_SOURCE);
-        LogHelper.d(TAG, "playSong:  current (" + mCurrentIndexOnQueue + ") in playingQueue. " +
+        Log.wtf(TAG, "playSong:  current (" + mCurrentIndexOnQueue + ") in playingQueue. " +
                 " musicId=" + track.getString(MediaMetadata.METADATA_KEY_MEDIA_ID) +
                 " source=" + source);
 
@@ -717,6 +723,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
             mState = PlaybackState.STATE_BUFFERING;
 
             mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            Log.wtf(TAG, source);
             mMediaPlayer.setDataSource(source);
 
             // Starts preparing the media player in the background. When
@@ -735,7 +742,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
             updateMetadata();
 
         } catch (IOException ex) {
-            LogHelper.e(TAG, ex, "IOException playing song");
+            Log.e(TAG, ex + "IOException playing song");
             updatePlaybackState(ex.getMessage());
         }
     }
@@ -744,7 +751,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
 
     private void updateMetadata() {
         if (!QueueHelper.isIndexPlayable(mCurrentIndexOnQueue, mPlayingQueue)) {
-            LogHelper.e(TAG, "Can't retrieve current metadata.");
+            Log.e(TAG, "Can't retrieve current metadata.");
             mState = PlaybackState.STATE_ERROR;
             updatePlaybackState(getResources().getString(R.string.error_no_metadata));
             return;
@@ -757,7 +764,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
             throw new IllegalStateException("track ID (" + trackId + ") " +
                     "should match mediaId (" + mediaId + ")");
         }
-        LogHelper.d(TAG, "Updating metadata for MusicID= " + mediaId);
+        Log.wtf(TAG, "Updating metadata for MusicID= " + mediaId);
         mSession.setMetadata(track);
     }
 
@@ -769,7 +776,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      *
      */
     private void updatePlaybackState(String error) {
-        LogHelper.d(TAG, "updatePlaybackState, setting session playback state to " + mState);
+        Log.wtf(TAG, "updatePlaybackState, setting session playback state to " + mState);
         long position = PlaybackState.PLAYBACK_POSITION_UNKNOWN;
         if (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
             position = mMediaPlayer.getCurrentPosition();
@@ -804,8 +811,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
             if (mMusicProvider.isFavorite(mediaId)) {
                 favoriteIcon = R.drawable.ic_star_on;
             }
-            LogHelper.d(TAG, "updatePlaybackState, setting Favorite custom action of music ",
-                    mediaId, " current favorite=", mMusicProvider.isFavorite(mediaId));
+            Log.wtf(TAG, "updatePlaybackState, setting Favorite custom action of music " + mediaId+  " current favorite=" + mMusicProvider.isFavorite(mediaId));
             stateBuilder.addCustomAction(CUSTOM_ACTION_THUMBS_UP, getString(R.string.favorite),
                     favoriteIcon);
         }
@@ -833,8 +839,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
         if (QueueHelper.isIndexPlayable(mCurrentIndexOnQueue, mPlayingQueue)) {
             MediaSession.QueueItem item = mPlayingQueue.get(mCurrentIndexOnQueue);
             if (item != null) {
-                LogHelper.d(TAG, "getCurrentPlayingMusic for musicId=",
-                        item.getDescription().getMediaId());
+                Log.wtf(TAG, "getCurrentPlayingMusic for musicId=" + item.getDescription().getMediaId());
                 return mMusicProvider.getMusic(item.getDescription().getMediaId());
             }
         }
@@ -845,7 +850,7 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      * Try to get the system audio focus.
      */
     void tryToGetAudioFocus() {
-        LogHelper.d(TAG, "tryToGetAudioFocus");
+        Log.wtf(TAG, "tryToGetAudioFocus");
         if (mAudioFocus != AudioFocus.Focused) {
             int result = mAudioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN);
@@ -860,11 +865,16 @@ public class MusicService extends MediaBrowserService implements OnPreparedListe
      * Give up the audio focus.
      */
     void giveUpAudioFocus() {
-        LogHelper.d(TAG, "giveUpAudioFocus");
+        Log.wtf(TAG, "giveUpAudioFocus");
         if (mAudioFocus == AudioFocus.Focused) {
             if (mAudioManager.abandonAudioFocus(this) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 mAudioFocus = AudioFocus.NoFocusNoDuck;
             }
         }
     }
+
+    /**
+     * 
+     *
+     */
 }
